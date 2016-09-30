@@ -2,14 +2,12 @@
 title: "Rcdm Package Demo"
 author: "Michel Philipp"
 date: "30 September 2016"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
-***
 
 ## Installation
 
@@ -38,7 +36,7 @@ need to be installed on your system.
 install.packages(c("Rcpp", "Matrix", "limSolve", "gtools"))
 ```
 
-***
+\newpage
 
 ## Fitting a GDINA model
 
@@ -73,11 +71,11 @@ mGDINA <- gdina(resp, qmat)
 ```
 
 Plot the estimated conditional response probabilities:
-```{r, fig.height=10}
+```{r, fig.height=9}
 plot(mGDINA)
 ```
 
-***
+\newpage
 
 ## Analyzing the Result
 
@@ -159,7 +157,7 @@ BIC(mGDINA)
 AIC(mGDINA)
 ```
 
-***
+\newpage
 
 ## Fitting Reduced Models
 
