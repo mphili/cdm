@@ -1,0 +1,43 @@
+## C code
+useDynLib("Rcdm", "calc_lxa")
+
+## imported packages (with generics etc.)
+import(
+  "glmnet", 
+  "limSolve", 
+  "MASS", 
+  "gtools", 
+  "stats"
+)
+
+importFrom("Matrix", "bdiag")
+
+export(
+  ## gdina methods
+  "gdina",
+  "gdina_control",
+  "gdina_prepare",
+  "gdina_sim",
+  "gdina_wald",
+  ## estfun methods
+  "estfun.gdina"
+)
+
+## methods for gdina objects
+S3method("anova", "gdina")
+S3method("coef", "gdina")
+S3method("confint", "gdina")
+S3method("plot", "gdina")
+S3method("print", "gdina")
+S3method("logLik", "gdina")
+S3method("stepAIC", "gdina")
+S3method("summary", "gdina")
+S3method("update", "gdina")
+S3method("vcov", "gdina")
+
+## methods for wald.gdina objects
+S3method("print", "wald.gdina")
+
+## methods for summary.gdina objects
+S3method("print", "summary.gdina")
+
