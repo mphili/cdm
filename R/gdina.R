@@ -308,7 +308,7 @@ gdina <- function(x, q, rule = "G-DINA", link = "identity",
   
 }
 
-estfun.gdina <- function(object)
+estfun.gdina <- function(object, prob = FALSE, simplify = FALSE)
 {
   
   x <- object$x
@@ -343,8 +343,15 @@ estfun.gdina <- function(object)
   lxa_over_l[,object$pa < 1e-10] <- 0
   score_pa <- lxa_over_l[,-l] - lxa_over_l[,l]
   
-  return(list(dj = score_dj, pj = score_pj, pa = score_pa))
-  
+  if(simplify == "array") {
+    if(prob)
+      return(cbind(do.call("cbind", score_pj), score_pa))
+    else
+      return(cbind(do.call("cbind", score_dj), score_pa))
+  } else {
+    return(list(dj = score_dj, pj = score_pj, pa = score_pa))
+  }
+
 }
 
 vcov.gdina <- function(object, type = c("full", "partial", "itemwise"), 
@@ -373,10 +380,7 @@ vcov.gdina <- function(object, type = c("full", "partial", "itemwise"),
   return(vcov)
 }
 
-coef.gdina <- function(object)
-{
-  print(object$cftable)
-}
+coef.gdina <- function(object) object$cftable
 
 confint.gdina <- function(object, alpha = 0.05, prob = FALSE)
 {
@@ -739,3 +743,43 @@ print.summary.gdina <- function(object)
 {
   cat("Printing summary function not yet implemented!")
 }
+
+difwald <- function(objR, objF, parm = seq(nrow(coef(objR))), ...) {
+  
+  if(any(!objR$prep$rule == "DINA")) stop("Currently, all item must be DINA to perform this test!")
+  
+  df <- length(parm)
+  
+  V0 <- matrix(0, df, df)
+  betaR <- coef(objR)$est[parm]
+  betaF <- coef(objF)$est[parm]
+  b <- matrix(c(betaR, betaF))
+  R <- cbind(diag(rep(1, df)), diag(rep(-1, df)))
+  
+  vcovR <- if(!is.null(objR$vcov)) objR$vcov[parm,parm] else vcov(objR, ...)[parm,parm]
+  vcovF <- if(!is.null(objF$vcov)) objF$vcov[parm,parm] else vcov(objF, ...)[parm,parm]
+  
+  if(any(is.na(vcovR)) || any(is.na(vcovF))) {
+    warning("NA values in variance covariance matrix")
+    return(c(NA, NA))
+  }
+  
+  V <- rbind(cbind(vcovR, V0), cbind(V0, vcovF))
+  W <- t(R %*% b) %*% qr.solve(R %*% V %*% t(R)) %*% (R %*% b)
+  pval <- pchisq(drop(W), df = df, lower.tail = FALSE)
+  
+  rval <- list(statistic = as.numeric(W), p.value = pval, parameter = df, method = "Wald test")
+  class(rval) <- "diftest"
+  
+  return(rval)
+  
+}
+
+difscore <- function(obj, z, parm = seq(nrow(coef(objR))), ...) {
+  strucchange::sctest(obj, 
+         order.by = z, 
+         scores = function(x) estfun.gdina(x, prob = FALSE, simplify = "array"),
+         parm = parm,
+         functional = ifelse(is.factor(z), "LMuo", "dmax"))
+}
+

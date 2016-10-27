@@ -7,7 +7,8 @@ import(
   "limSolve", 
   "MASS", 
   "gtools", 
-  "stats"
+  "stats",
+  "strucchange"
 )
 
 importFrom("Matrix", "bdiag")
@@ -20,7 +21,10 @@ export(
   "gdina_sim",
   "gdina_wald",
   ## estfun methods
-  "estfun.gdina"
+  "estfun.gdina",
+  ## dif methods
+  "difwald",
+  "difscore"
 )
 
 ## methods for gdina objects

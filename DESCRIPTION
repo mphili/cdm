@@ -9,7 +9,7 @@ Description: More details about what the package does. See
       <http://http://cran.r-project.org/doc/manuals/r-release/R-exts.html#The-DESCRIPTION-file>
       for details on how to write this part.
 Depends: R (>= 3.0.0), Rcpp (>= 0.12), Matrix (>= 1.1.1), limSolve (>= 1.5), gtools (>= 3.4)
-Imports: glmnet, limSolve, MASS, stats
+Imports: glmnet, limSolve, MASS, stats, strucchange
 Suggests: pks
 LinkingTo: Rcpp, RcppArmadillo
 License: GPL-2 | GPL-3
