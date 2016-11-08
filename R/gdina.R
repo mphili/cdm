@@ -274,7 +274,7 @@ gdina <- function(x, q, rule = "G-DINA", link = "identity",
   par_upd$dj <- pj2dj(pj = par_upd$pj, I = I)
   
   rval <- lapply(1:j, function(jj) {
-    data.frame(item   = rep(rownames(qmat)[jj], , np[jj]),
+    data.frame(item   = rep(rownames(q)[jj], , np[jj]),
                itemno = rep(jj, np[jj]), 
                rule   = rep(rule[jj], np[jj]), 
                est    = par_upd$dj[[jj]])
@@ -380,7 +380,23 @@ vcov.gdina <- function(object, type = c("full", "partial", "itemwise"),
   return(vcov)
 }
 
-coef.gdina <- function(object) object$cftable
+coef.gdina <- function(object, prob = FALSE) {
+  if(prob) {
+    pj <- object$pj
+    j <- length(pj)
+    rval <- lapply(1:j, function(jj) {
+      nc <- length(pj[[jj]])
+      data.frame(item   = rep(rownames(object$q)[jj], nc),
+                 itemno = rep(jj, nc),
+                 rule   = rep(object$prep$rule[jj], nc),
+                 prob   = pj[[jj]])
+    })
+    cftable <- do.call("rbind", rval)
+    cftable
+  } else {
+    object$cftable
+  }
+}
 
 confint.gdina <- function(object, alpha = 0.05, prob = FALSE)
 {
@@ -414,7 +430,7 @@ plot.gdina <- function(object, max.plot = 16, plotCI = TRUE)
 }
 
 gdina_sim <- function(n, q, rule = c("DINA", "DINO", "ACDM", "G-DINA"), 
-                      pi = 0.5, dj0 = 0.2, uniqueMj = TRUE)
+                      pi = 0.5, dj0 = c(0.2, 0.6), uniqueMj = TRUE)
 {
   
   rule <- match.arg(rule)
@@ -435,12 +451,15 @@ gdina_sim <- function(n, q, rule = c("DINA", "DINO", "ACDM", "G-DINA"),
   ## sample skill vectors
   alpha <- prep$a[sample(1:m, n, replace = TRUE, prob = pa),]
   
+  ## make list if not
+  if(!is.list(dj0)) dj0 <- rep(list(dj0), j)
+
   ## true response probabilities according to de la Torre (2013)
   dj_true <- lapply(1:j, function(jj) {
     npjj <- prep$np[jj]
     init <- rep(0, npjj)
-    init[1] <- dj0
-    init[2:npjj] <- rep((1 - 2*dj0) / (npjj-1), (npjj-1))
+    init[1] <- dj0[[jj]][1]
+    init[2:npjj] <- rep(dj0[[jj]][2] / (npjj-1), (npjj-1))
     init
   })
   names(dj_true) <- paste("Item", 1:j, sep = "")
@@ -722,8 +741,7 @@ stepAIC.gdina <- function(object, k = 2,
 update.gdina <- function(object, x = object$x, q = object$q, 
                          rule = object$prep$rule)
 {
-  return(gdina(x = x, q = q, rule = rule, ctrl = object$ctrl, 
-               method = object$method, link = object$link))
+  return(gdina(x = x, q = q, rule = rule, ctrl = object$ctrl, link = object$link))
 }
 
 print.gdina <- function(object)
@@ -744,10 +762,17 @@ print.summary.gdina <- function(object)
   cat("Printing summary function not yet implemented!")
 }
 
-difwald <- function(objR, objF, parm = seq(nrow(coef(objR))), ...) {
+difwald <- function(objR, objF, parm = seq(nrow(coef(objR))), item = NULL, ...) {
   
   if(any(!objR$prep$rule == "DINA")) stop("Currently, all item must be DINA to perform this test!")
   
+  if(!is.null(item)) {
+    if(is.numeric(item))
+      parm <- which(coef(objR)$itemno %in% item)
+    else
+      parm <- which(coef(objR)$item %in% item)
+  }
+
   df <- length(parm)
   
   V0 <- matrix(0, df, df)
@@ -756,8 +781,11 @@ difwald <- function(objR, objF, parm = seq(nrow(coef(objR))), ...) {
   b <- matrix(c(betaR, betaF))
   R <- cbind(diag(rep(1, df)), diag(rep(-1, df)))
   
-  vcovR <- if(!is.null(objR$vcov)) objR$vcov[parm,parm] else vcov(objR, ...)[parm,parm]
-  vcovF <- if(!is.null(objF$vcov)) objF$vcov[parm,parm] else vcov(objF, ...)[parm,parm]
+  vcovR <- vcov(objR, ...)[parm,parm]
+  vcovF <- vcov(objF, ...)[parm,parm]
+
+  # vcovR <- if(!is.null(objR$vcov)) objR$vcov[parm,parm] else vcov(objR, ...)[parm,parm]
+  # vcovF <- if(!is.null(objF$vcov)) objF$vcov[parm,parm] else vcov(objF, ...)[parm,parm]
   
   if(any(is.na(vcovR)) || any(is.na(vcovF))) {
     warning("NA values in variance covariance matrix")
@@ -768,18 +796,34 @@ difwald <- function(objR, objF, parm = seq(nrow(coef(objR))), ...) {
   W <- t(R %*% b) %*% qr.solve(R %*% V %*% t(R)) %*% (R %*% b)
   pval <- pchisq(drop(W), df = df, lower.tail = FALSE)
   
-  rval <- list(statistic = as.numeric(W), p.value = pval, parameter = df, method = "Wald test")
-  class(rval) <- "diftest"
+  rval <- list(statistic = as.numeric(W), 
+               parameter = df, 
+               p.value = pval, 
+               method = "Wald-test for DIF detection",
+               data.name = "objR, objF")
+
+  names(rval$statistic) = "Wj"
+  names(rval$parameter) = "df"
+  
+  class(rval) <- "htest"
   
   return(rval)
   
 }
 
-difscore <- function(obj, z, parm = seq(nrow(coef(objR))), ...) {
+difscore <- function(obj, z, parm = seq(nrow(coef(obj))), item = NULL) {
+  
+  if(!is.null(item)) {
+    if(is.numeric(item))
+      parm <- which(coef(obj)$itemno %in% item)
+    else
+      parm <- which(coef(obj)$item %in% item)
+  }
+  
   strucchange::sctest(obj, 
          order.by = z, 
          scores = function(x) estfun.gdina(x, prob = FALSE, simplify = "array"),
          parm = parm,
          functional = ifelse(is.factor(z), "LMuo", "dmax"))
-}
 
+}
