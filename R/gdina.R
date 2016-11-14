@@ -74,10 +74,10 @@ gdina <- function(x, q, rule = "G-DINA", link = "identity",
   ## function to compute the log-likelihood value
   loglik <- function(par)
   {
-    pj <- lapply(1:j, function(jj) {
-      invlinkfn(prep$Mj[[jj]] %*% par$dj[[jj]])
-    })
-    lxa <- eq14(pj, x_patt)
+    # pj <- lapply(1:j, function(jj) {
+    #   invlinkfn(prep$Mj[[jj]] %*% par$dj[[jj]])
+    # })
+    lxa <- eq14(par$pj, x_patt)
     sum(x_freq * log(colSums(t(lxa) * par$pa)))
   }
   
