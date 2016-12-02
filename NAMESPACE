@@ -19,7 +19,7 @@ export(
   "gdina_control",
   "gdina_prepare",
   "gdina_sim",
-  "gdina_wald",
+  "item_level_fit",
   ## estfun methods
   "estfun.gdina",
   ## dif methods

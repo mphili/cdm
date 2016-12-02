@@ -282,7 +282,8 @@ gdina <- function(x, q, rule = "G-DINA", link = "identity",
   cftable <- do.call("rbind", rval)
   
   ## return object
-  rval <- list(x = x, q = q,
+  rval <- list(call = match.call(),
+               x = x, q = q,
                cftable = cftable,
                dj = par_upd$dj,
                pj = par_upd$pj,
@@ -380,43 +381,40 @@ vcov.gdina <- function(object, type = c("full", "partial", "itemwise"),
   return(vcov)
 }
 
-coef.gdina <- function(object, prob = FALSE) {
-  if(prob) {
-    pj <- object$pj
-    j <- length(pj)
-    rval <- lapply(1:j, function(jj) {
-      nc <- length(pj[[jj]])
-      data.frame(item   = rep(rownames(object$q)[jj], nc),
-                 itemno = rep(jj, nc),
-                 rule   = rep(object$prep$rule[jj], nc),
-                 prob   = pj[[jj]])
-    })
-    cftable <- do.call("rbind", rval)
-    cftable
+coef.gdina <- function(x, type = "all", prob = FALSE) {
+  match.arg(type, c("item", "all", "skill"))
+  if(type=="skill") {
+    ans <- x$pa
   } else {
-    object$cftable
+    ans <- if(prob) do.call("c", x$pj) else unlist(x$dj)
+    if(type=="all") {
+      ans <- c(ans, x$pa)
+    }
   }
+  return(ans)
 }
 
-confint.gdina <- function(object, alpha = 0.05, prob = FALSE)
+confint.gdina <- function(object, alpha = 0.05, prob = FALSE, digits = 4)
 {
   cf <- if(prob) unlist(object$pj) else unlist(object$dj)
   se <- sqrt(diag(vcov(object, prob = prob)))[1:length(cf)]
-  itemno <- unlist(lapply(1:nrow(object$q), function(jj) 
-    rep(jj, ifelse(prob, nrow(object$prep$Mj[[jj]]), object$prep$np[[jj]]))))
-  data.frame(itemno = itemno,
-             lower = cf - qnorm(1 - alpha/2) * se, 
+  ans <- data.frame(lower = cf - qnorm(1 - alpha/2) * se, 
              upper = cf + qnorm(1 - alpha/2) * se)
+  colnames(ans) <- c(
+    sprintf("%3.1f %%", 100*(alpha/2)),
+    sprintf("%3.1f %%", 100*(1-alpha/2))
+  )
+  round(ans, digits)
 }
 
-plot.gdina <- function(object, max.plot = 16, plotCI = TRUE)
+plot.gdina <- function(object, max.plot = 16, plotCI = TRUE, ...)
 {
   pj <- object$pj
   j <- length(pj)
   par(mfrow = n2mfrow(min(max.plot, j)))
   if(plotCI) ci <- confint(object, prob = TRUE)
   ans <- sapply(1:j, function(jj) {
-    b <- barplot(pj[[jj]], main = paste0("Item", jj), ylim = c(0,1))
+    b <- barplot(pj[[jj]], main = paste0("Item", jj), ylim = c(0,1), ...)
     if(plotCI) {
       cijj <- ci[ci$itemno == jj,]
       sapply(1:length(pj[[jj]]), function(p) {
@@ -427,6 +425,10 @@ plot.gdina <- function(object, max.plot = 16, plotCI = TRUE)
     }
   })
   par(mfrow = c(1,1))
+}
+
+barplot.gdina <- function(object, main = "Latent class distribution", ...) {
+  barplot(object$pa, las = 2, main = main, ...)
 }
 
 gdina_sim <- function(n, q, rule = c("DINA", "DINO", "ACDM", "G-DINA"), 
@@ -577,7 +579,7 @@ logLik.gdina <- function(x, ...) {
   structure(x$loglik, df = x$npar, class = "logLik")
 }
 
-gdina_wald <- function(object, red.model = "DINA", prob = FALSE, 
+item_level_fit <- function(object, red.model = "DINA", prob = FALSE, 
                        method = "none", ...)
 {
   
@@ -702,7 +704,7 @@ anova.gdina <- function(object, ..., names = NULL)
   rval$Deviance <- (-2) * (c(NA, rval$logLik[-length(objects)]) - rval$logLik)
   dfs <- rval$Df
   vals <- rval$Deviance
-  rval <- cbind(rval, `Pr(>Chi)` = pchisq(vals, abs(dfs), lower.tail = FALSE))
+  rval <- cbind(rval, "Pr(>Chi)" = pchisq(vals, abs(dfs), lower.tail = FALSE))
   if(is.null(names)) {
     rownames(rval) <- paste("m", 1:length(objects), sep = "")
   } else {
@@ -724,15 +726,15 @@ stepAIC.gdina <- function(object, k = 2,
       if(rr != rule[jj]) {
         ruleA <- rule
         ruleA[jj] <- rr
-        mA <- update(m, rule = ruleA)
+        mA <- update(object, rule = ruleA)
         AIC(mA, k = k)
-      } else AIC(m, k = k)
+      } else AIC(object, k = k)
     })
     rule_upd[jj] <- names(which.min(rval[jj,]))
   }
   cat("\n")
   print(rval)
-  mnew <- update(m, rule = rule_upd)
+  mnew <- update(object, rule = rule_upd)
   cat("\n")
   cat("Selected rules per item:\n")
   print(mnew$prep$rule)
@@ -745,40 +747,99 @@ update.gdina <- function(object, x = object$x, q = object$q,
   return(gdina(x = x, q = q, rule = rule, ctrl = object$ctrl, link = object$link))
 }
 
-print.gdina <- function(object)
+print.gdina <- function(x)
 {
-  cat("Printing function not yet implemented!")
+  cat("\nCall:\n")
+  print(x$call)
+  cat("\nNumber of items:", nrow(x$q))
+  cat("\nNumber of skills:", ncol(x$q))
+  cat("\nNumber of latent classes:", 2^ncol(x$q))
+  cat("\nNumber of respondents:", x$nobs)
+  cat("\nNumber of parameters:", x$np)
+  cat("\n\nlog Lik. = ", logLik(x), ", BIC = ", BIC(x), ", AIC = ", AIC(x), sep = "")
 }
 
-summary.gdina <- function(object)
+summary.gdina <- function(x, prob = FALSE)
 {
-  cat("Summary function not yet implemented!")
-  rval <- NULL
-  class(rval) <- "summary.gdina"
-  return(NULL)
+  
+  j <- nrow(x$q)
+  if(prob) {
+    nc <- sapply(x$pj, length)
+    rval <- lapply(1:j, function(jj) {
+      data.frame(item    = rep(rownames(x$q)[jj], nc[jj]),
+                 itemno  = rep(jj, nc[jj]),
+                 pattern = rownames(x$prep$Mj[[jj]]),
+                 rule    = rep(x$prep$rule[jj], nc[jj]),
+                 prob    = x$pj[[jj]])
+    })
+    cftable <- do.call("rbind", rval)
+    cftable$se <- sqrt(diag(vcov(x, prob = TRUE))[1L:nrow(cftable)])
+    rownames(cftable) <- NULL
+    colnames(cftable) <- c("Item", "Itemno", "Pattern", "Rule", "Estimate", "Std.Err")
+  } else {
+    np <- sapply(x$dj, length)
+    rval <- lapply(1:j, function(jj) {
+      data.frame(item   = rep(rownames(x$q)[jj], np[jj]),
+                 itemno = rep(jj, np[jj]), 
+                 name   = colnames(x$prep$Mj[[jj]]),
+                 rule   = rep(x$prep$rule[jj], np[jj]), 
+                 est    = x$dj[[jj]])
+    })
+    cftable <- do.call("rbind", rval)
+    cftable$se <- sqrt(diag(vcov(x))[1L:nrow(cftable)])
+    rownames(cftable) <- NULL
+    colnames(cftable) <- c("Item", "Itemno", "Name", "Rule", "Estimate", "Std.Err")
+  }
+  
+  ans <- list(call = x$call, 
+              J = nrow(x$q), 
+              K = ncol(x$q), 
+              L = 2^ncol(x$q),
+              npar = x$npar,
+              nobs = x$nobs,
+              cftable = cftable,
+              pa = x$pa,
+              ll = logLik(x),
+              aic = AIC(x),
+              bic = BIC(x))
+  
+  class(ans) <- "summary.gdina"
+  ans
 }
 
-print.summary.gdina <- function(object)
+print.summary.gdina <- function(x, digits = 3)
 {
-  cat("Printing summary function not yet implemented!")
+  cat("\nCall:\n")
+  print(x$call)
+  cat("\nNumber of items:", x$J)
+  cat("\nNumber of skills:", x$K)
+  cat("\nNumber of latent classes:", x$L)
+  cat("\nNumber of respondents:", x$nobs)
+  cat("\nNumber of parameters:", x$npar)
+  cat("\n\nItem parameters:\n\n")
+  print(x$cftable, digits = digits)
+  cat("\nSkill parameters:\n\n")
+  print(x$pa, digits = digits)
+  cat("\nlog Lik. = ", x$ll, ", BIC = ", x$bic, ", AIC = ", x$aic, sep = "")
 }
 
-difwald <- function(objR, objF, parm = seq(nrow(coef(objR))), item = NULL, ...) {
+difwald <- function(objR, objF, parm = seq_along(coef(objR, type = "item")), 
+                    item = NULL, ...) {
   
   if(any(!objR$prep$rule == "DINA")) stop("Currently, all item must be DINA to perform this test!")
   
   if(!is.null(item)) {
     if(is.numeric(item))
-      parm <- which(coef(objR)$itemno %in% item)
+      parm <- which(objR$cftable$itemno %in% item)
     else
-      parm <- which(coef(objR)$item %in% item)
+      parm <- which(objR$cftable$item %in% item)
   }
 
   df <- length(parm)
   
   V0 <- matrix(0, df, df)
-  betaR <- coef(objR)$est[parm]
-  betaF <- coef(objF)$est[parm]
+  betaR <- objR$cftable$est[parm]
+  betaF <- objF$cftable$est[parm]
   b <- matrix(c(betaR, betaF))
   R <- cbind(diag(rep(1, df)), diag(rep(-1, df)))
   
@@ -812,15 +873,16 @@ difwald <- function(objR, objF, parm = seq(nrow(coef(objR))), item = NULL, ...) 
   
 }
 
-difscore <- function(obj, z, parm = seq(nrow(coef(obj))), item = NULL) {
+difscore <- function(obj, z, parm = seq_along(coef(obj, type = "item")),
+                     item = NULL) {
   
   if(!is.null(item)) {
     if(is.numeric(item))
-      parm <- which(coef(obj)$itemno %in% item)
+      parm <- which(obj$cftable$itemno %in% item)
     else
-      parm <- which(coef(obj)$item %in% item)
+      parm <- which(obj$cftable$item %in% item)
   }
-  
+
   strucchange::sctest(obj, 
          order.by = z, 
          scores = function(x) estfun.gdina(x, prob = FALSE, simplify = "array"),
