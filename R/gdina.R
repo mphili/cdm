@@ -676,14 +676,15 @@ restriction_matrix <- function(Mj, rule = "DINA", prob = FALSE)
 
 permutations <- function(k, col.names = NULL, row.names = NULL)
 {
-  tval <- gtools::permutations(2, k, 0:1, repeats.allowed = TRUE)
-  rval <- lapply(0:k, function(kk) {
+  tval <- as.matrix(expand.grid(replicate(k, c(0L, 1L), simplify = FALSE)))
+  #tval <- gtools::permutations(2, k, 0:1, repeats.allowed = TRUE)
+  rval <- lapply(0L:k, function(kk) {
     tmp <- tval[rowSums(tval) == kk,,drop=FALSE]
-    tmp[order(tmp %*% 10^(k:1), decreasing = TRUE),,drop = FALSE]
+    tmp[order(tmp %*% 10^(k:1L), decreasing = TRUE),,drop = FALSE]
   })
   rval <- do.call("rbind", rval)
-  rownames(rval) <- if(is.null(row.names)) apply(rval, 1, paste, collapse = "") else row.names
-  colnames(rval) <- if(is.null(col.names)) paste0("K", 1:k) else col.names
+  rownames(rval) <- if(is.null(row.names)) apply(rval, 1L, paste, collapse = "") else row.names
+  colnames(rval) <- if(is.null(col.names)) paste0("K", 1L:k) else col.names
   return(rval)
 }
 
