@@ -5,10 +5,9 @@ Title: Fitting and Testing of Cognitive Diagnosis Models
 Authors@R: person(given = "Michel", family = "Philipp", role = c("aut", "cre"), email = "M.Philipp@psychologie.uzh.ch")
 Author: Michel Philipp [aut, cre]
 Maintainer: Michel Philipp <M.Philipp@psychologie.uzh.ch>
-Description: More details about what the package does.
-Depends: R (>= 3.0.0), Rcpp (>= 0.12), Matrix (>= 1.1.1), limSolve (>= 1.5)
+Description: FItting cognitive diagnosis models and detecting differential item functioning.
+Depends: R (>= 3.0.0), Rcpp (>= 0.12), Matrix (>= 1.1.1), limSolve (>= 1.5.0)
 Imports: glmnet, limSolve, MASS, stats, strucchange
 Suggests: pks
 LinkingTo: Rcpp, RcppArmadillo
 License: GPL-2 | GPL-3
-
