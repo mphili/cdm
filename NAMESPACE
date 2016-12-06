@@ -20,6 +20,7 @@ export(
   "gdina_prepare",
   "gdina_sim",
   "item_level_fit",
+  "step_rule",
   ## estfun methods
   "estfun.gdina",
   ## dif methods
@@ -34,7 +35,6 @@ S3method("confint", "gdina")
 S3method("plot", "gdina")
 S3method("print", "gdina")
 S3method("logLik", "gdina")
-S3method("stepAIC", "gdina")
 S3method("summary", "gdina")
 S3method("update", "gdina")
 S3method("vcov", "gdina")

@@ -352,7 +352,7 @@ estfun.gdina <- function(object, prob = FALSE, simplify = FALSE)
   } else {
     return(list(dj = score_dj, pj = score_pj, pa = score_pa))
   }
-
+  
 }
 
 vcov.gdina <- function(object, type = c("full", "partial", "itemwise"), 
@@ -399,7 +399,7 @@ confint.gdina <- function(object, alpha = 0.05, prob = FALSE, digits = 4)
   cf <- if(prob) unlist(object$pj) else unlist(object$dj)
   se <- sqrt(diag(vcov(object, prob = prob)))[1:length(cf)]
   ans <- data.frame(lower = cf - qnorm(1 - alpha/2) * se, 
-             upper = cf + qnorm(1 - alpha/2) * se)
+                    upper = cf + qnorm(1 - alpha/2) * se)
   colnames(ans) <- c(
     sprintf("%3.1f %%", 100*(alpha/2)),
     sprintf("%3.1f %%", 100*(1-alpha/2))
@@ -455,7 +455,7 @@ gdina_sim <- function(n, q, rule = c("DINA", "DINO", "ACDM", "G-DINA"),
   
   ## make list if not
   if(!is.list(dj0)) dj0 <- rep(list(dj0), j)
-
+  
   ## true response probabilities according to de la Torre (2013)
   dj_true <- lapply(1:j, function(jj) {
     npjj <- prep$np[jj]
@@ -580,7 +580,7 @@ logLik.gdina <- function(x, ...) {
 }
 
 item_level_fit <- function(object, red.model = "DINA", prob = FALSE, 
-                       method = "none", ...)
+                           method = "none", ...)
 {
   
   if(!all(object$prep$rule == "G-DINA"))
@@ -713,8 +713,8 @@ anova.gdina <- function(object, ..., names = NULL)
   structure(rval, heading = c(title), class = c("anova", "data.frame"))
 }
 
-stepAIC.gdina <- function(object, k = 2, 
-                          check.rules = c("DINA", "DINO", "ACDM", "G-DINA"))
+step_rule <- function(object, k = 2, 
+                      check.rules = c("DINA", "DINO", "ACDM", "G-DINA"))
 {
   rule_upd <- rule <- object$prep$rule
   rval <- matrix(NA, nrow(object$q), length(check.rules))
@@ -834,7 +834,7 @@ difwald <- function(objR, objF, parm = seq_along(coef(objR, type = "item")),
     else
       parm <- which(objR$cftable$item %in% item)
   }
-
+  
   df <- length(parm)
   
   V0 <- matrix(0, df, df)
@@ -845,7 +845,7 @@ difwald <- function(objR, objF, parm = seq_along(coef(objR, type = "item")),
   
   vcovR <- vcov(objR, ...)[parm,parm]
   vcovF <- vcov(objF, ...)[parm,parm]
-
+  
   # vcovR <- if(!is.null(objR$vcov)) objR$vcov[parm,parm] else vcov(objR, ...)[parm,parm]
   # vcovF <- if(!is.null(objF$vcov)) objF$vcov[parm,parm] else vcov(objF, ...)[parm,parm]
   
@@ -863,7 +863,7 @@ difwald <- function(objR, objF, parm = seq_along(coef(objR, type = "item")),
                p.value = pval, 
                method = "Wald-test for DIF detection",
                data.name = "objR, objF")
-
+  
   names(rval$statistic) = "Wj"
   names(rval$parameter) = "df"
   
@@ -882,11 +882,11 @@ difscore <- function(obj, z, parm = seq_along(coef(obj, type = "item")),
     else
       parm <- which(obj$cftable$item %in% item)
   }
-
+  
   strucchange::sctest(obj, 
-         order.by = z, 
-         scores = function(x) estfun.gdina(x, prob = FALSE, simplify = "array"),
-         parm = parm,
-         functional = ifelse(is.factor(z), "LMuo", "dmax"))
-
+                      order.by = z, 
+                      scores = function(x) estfun.gdina(x, prob = FALSE, simplify = "array"),
+                      parm = parm,
+                      functional = ifelse(is.factor(z), "LMuo", "dmax"))
+  
 }
