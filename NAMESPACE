@@ -4,9 +4,9 @@ useDynLib("Rcdm", "calc_lxa")
 ## imported packages (with generics etc.)
 import(
   "glmnet", 
+  "Rcpp", 
   "limSolve", 
   "MASS", 
-  "gtools", 
   "stats",
   "strucchange"
 )
